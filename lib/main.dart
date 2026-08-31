@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
+import 'add_ad.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,11 +38,65 @@ class HomeScreen extends StatelessWidget {
         title: const Text('تطبيق اسعى للإعلانات'),
         centerTitle: true,
       ),
-      body: const Center(
-        child: Text(
-          'مرحباً بك في تطبيق اسعى!',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('ads')
+            .orderBy('createdAt', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Text(
+                'لا توجد إعلانات حالياً.\nاضغط على + لإضافة إعلان جديد',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16),
+              ),
+            );
+          }
+
+          final ads = snapshot.data!.docs;
+
+          return ListView.builder(
+            itemCount: ads.length,
+            padding: const EdgeInsets.all(10),
+            itemBuilder: (context, index) {
+              final ad = ads[index].data() as Map<String, dynamic>;
+              return Card(
+                elevation: 3,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                child: ListTile(
+                  title: Text(
+                    ad['title'] ?? 'بدون عنوان',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    '${ad['description'] ?? ''}\nرقم التواصل: ${ad['phone'] ?? ''}',
+                  ),
+                  trailing: Text(
+                    '${ad['price'] ?? ''} TL',
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddAdScreen()),
+          );
+        },
+        child: const Icon(Icons.add),
       ),
     );
   }
